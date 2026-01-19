@@ -1,265 +1,329 @@
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../core/app_colors.dart';
 import '../models/car_model.dart';
-import 'car_booking_screen.dart';
+import '../models/rental_search_model.dart';
+import 'car_extras_screen.dart';
 
-class CarDetailsScreen extends StatelessWidget {
+class CarDetailsScreen extends StatefulWidget {
   final CarModel car;
+  final RentalSearchModel search;
 
-  const CarDetailsScreen({super.key, required this.car});
+  const CarDetailsScreen({
+    super.key,
+    required this.car,
+    required this.search,
+  });
+
+  @override
+  State<CarDetailsScreen> createState() => _CarDetailsScreenState();
+}
+
+class _CarDetailsScreenState extends State<CarDetailsScreen> {
+  final PageController _imageController = PageController();
+  int _currentImage = 0;
+
+  @override
+  void dispose() {
+    _imageController.dispose();
+    super.dispose();
+  }
+
+  double get totalPrice => widget.car.pricePerDay * widget.search.rentalDays;
 
   @override
   Widget build(BuildContext context) {
-    final gallery = car.images?.isNotEmpty == true
-        ? car.images!
-        : [car.imageUrl ?? ''];
+    final gallery = widget.car.images?.isNotEmpty == true
+        ? widget.car.images!
+        : [widget.car.imageUrl ?? ''];
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: AppColors.bgDark,
-        appBar: AppBar(
-          backgroundColor: AppColors.bgDark,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: const IconThemeData(color: Colors.white),
-          title: Text(
-            car.fullName,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
+        body: Stack(
+          children: [
+            // المحتوى
+            CustomScrollView(
+              slivers: [
+                // صور السيارة
+                SliverToBoxAdapter(
+                  child: _buildImageGallery(gallery),
+                ),
+
+                // معلومات السيارة
+                SliverToBoxAdapter(
+                  child: _buildCarInfo(),
+                ),
+
+                // المواصفات
+                SliverToBoxAdapter(
+                  child: _buildSpecifications(),
+                ),
+
+                // قائمة متطلبات الاستلام
+                SliverToBoxAdapter(
+                  child: _buildRequirements(),
+                ),
+
+                // موقع الاستلام
+                SliverToBoxAdapter(
+                  child: _buildPickupLocation(),
+                ),
+
+                // موقع التسليم
+                if (widget.search.differentReturnLocation)
+                  SliverToBoxAdapter(
+                    child: _buildReturnLocation(),
+                  ),
+
+                // المزايا المشمولة
+                SliverToBoxAdapter(
+                  child: _buildIncludedFeatures(),
+                ),
+
+                // مساحة للزر السفلي
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 100),
+                ),
+              ],
             ),
-          ),
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // معرض الصور
-              SizedBox(
-                height: 260,
-                child: PageView.builder(
-                  itemCount: gallery.length,
-                  itemBuilder: (_, index) {
-                    return Image.network(
-                      gallery[index],
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.black26,
-                        child: const Center(
-                          child: Icon(Icons.directions_car,
-                              size: 80, color: Colors.white54),
-                        ),
-                      ),
-                    );
-                  },
+
+            // زر الرجوع
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 10,
+              right: 16,
+              child: InkWell(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardDark.withOpacity(0.8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
               ),
+            ),
 
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // الاسم والسعر
-                    Text(
-                      car.fullName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      children: [
-                        Icon(Icons.location_on,
-                            size: 18, color: AppColors.primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          car.city,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.white70,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          car.priceText,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // الوصف
-                    if (car.description != null) ...[
-                      const Text(
-                        "الوصف",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        car.description!,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: Colors.white70,
-                          height: 1.5,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // المواصفات
-                    const Text(
-                      "المواصفات",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _spec(Icons.event_seat, "المقاعد", "${car.seats} مقاعد"),
-                    _spec(Icons.settings, "ناقل الحركة", car.transmission),
-                    _spec(Icons.local_gas_station, "نوع الوقود", car.fuelType),
-                    _spec(Icons.palette, "اللون", car.color ?? "غير محدد"),
-                    _spec(Icons.category, "الفئة",
-                        "${car.categoryIcon} ${car.category}"),
-
-                    const SizedBox(height: 20),
-
-                    // المميزات
-                    if (car.features != null && car.features!.isNotEmpty) ...[
-                      const Text(
-                        "المميزات",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: car.features!
-                            .map((f) => _featureChip(f))
-                            .toList(),
-                      ),
-
-                      const SizedBox(height: 20),
-                    ],
-
-                    // شروط الإيجار
-                    const Text(
-                      "شروط الإيجار",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _condition(
-                      Icons.verified_user,
-                      "التأمين ${car.insuranceIncluded ? "مشمول" : "غير مشمول"}",
-                    ),
-                    _condition(
-                      Icons.route,
-                      car.unlimitedKm
-                          ? "كيلومترات غير محدودة"
-                          : "حد ${car.kmLimit} كم/اليوم",
-                    ),
-                    _condition(
-                      Icons.calendar_today,
-                      "الحد الأدنى ${car.minRentalDays} ${car.minRentalDays == 1 ? "يوم" : "أيام"}",
-                    ),
-
-                    if (car.priceWithDriver != null)
-                      _condition(
-                        Icons.person,
-                        "متوفر مع سائق (${car.priceWithDriver!.toStringAsFixed(0)} ر.س/اليوم)",
-                      ),
-
-                    const SizedBox(height: 30),
-
-                    // زر الحجز
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CarBookingScreen(car: car),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: const Text(
-                          "احجز الآن",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            // الشريط السفلي
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildBottomBar(),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _spec(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+  // =============================
+  // 🖼️ معرض الصور
+  // =============================
+  Widget _buildImageGallery(List<String> gallery) {
+    return Container(
+      height: 280,
+      color: AppColors.cardDark,
+      child: Stack(
         children: [
-          Icon(icon, color: AppColors.primary, size: 22),
-          const SizedBox(width: 12),
+          PageView.builder(
+            controller: _imageController,
+            itemCount: gallery.length,
+            onPageChanged: (index) {
+              setState(() => _currentImage = index);
+            },
+            itemBuilder: (_, index) {
+              return gallery[index].isNotEmpty
+                  ? Image.network(
+                      gallery[index],
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => _buildImagePlaceholder(),
+                    )
+                  : _buildImagePlaceholder();
+            },
+          ),
+
+          // مؤشرات الصور
+          if (gallery.length > 1)
+            Positioned(
+              bottom: 16,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  gallery.length,
+                  (index) => Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: _currentImage == index ? 20 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _currentImage == index
+                          ? AppColors.primary
+                          : Colors.white38,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagePlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.directions_car, size: 80, color: Colors.white24),
+          const SizedBox(height: 8),
           Text(
-            "$label:",
+            widget.car.brand,
+            style: TextStyle(color: Colors.white38, fontSize: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  // 📋 معلومات السيارة
+  // =============================
+  Widget _buildCarInfo() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // اسم السيارة والشركة
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.car.fullName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "أو سيارة مماثلة",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.5),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // لوغو الشركة
+              Column(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        widget.car.brand.substring(0, 2).toUpperCase(),
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "شركة التأجير",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.5),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+          Divider(color: AppColors.borderDark),
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  // 🔧 المواصفات
+  // =============================
+  Widget _buildSpecifications() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "المواصفات",
             style: TextStyle(
-              color: Colors.white.withOpacity(.7),
-              fontSize: 15,
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
           ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildSpecChip(Icons.event_seat, "${widget.car.seats} المقاعد"),
+              _buildSpecChip(Icons.settings, widget.car.transmission),
+              _buildSpecChip(Icons.door_front_door, "4 الأبواب"),
+              _buildSpecChip(Icons.luggage, "2 الحقائب"),
+              _buildSpecChip(Icons.ac_unit, "مكيّف هواء"),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Divider(color: AppColors.borderDark),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpecChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderDark),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppColors.primary, size: 20),
           const SizedBox(width: 8),
           Text(
-            value,
+            text,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -267,40 +331,385 @@ class CarDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _featureChip(String feature) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.primary.withOpacity(.4)),
-      ),
-      child: Text(
-        feature,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-        ),
+  // =============================
+  // 📋 متطلبات الاستلام
+  // =============================
+  Widget _buildRequirements() {
+    final requirements = [
+      "جواز سفر أو بطاقة هوية حكومية",
+      "العمر بين 21 إلى 65 سنة",
+      "رخصة قيادة صالحة",
+      "بطاقة ائتمان أو خصم صالحة",
+      "عادةً ما يُطلب وديعة تأمين قابلة للاسترداد في معاملات تأجير السيارات",
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "قائمة الأمور المطلوبة للاستلام",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...requirements.map((req) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    color: AppColors.primary,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    req,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                "يرجى مراجعة ",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
+              Text(
+                "شروط الاستخدام",
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+              Text(
+                " للمزيد من المعلومات",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Divider(color: AppColors.borderDark),
+        ],
       ),
     );
   }
 
-  Widget _condition(IconData icon, String text) {
+  // =============================
+  // 📍 موقع الاستلام
+  // =============================
+  Widget _buildPickupLocation() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppColors.success, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
+          const Text(
+            "موقع الاستلام",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                "المسافة من موقعك الحالي إلى الفرع • ",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 13,
+                ),
+              ),
+              Text(
+                "4.2 كيلومترات",
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.white70, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.search.pickupLocation,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                "الاتجاهات",
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // الخريطة
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              height: 180,
+              color: AppColors.cardDark,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.map, size: 50, color: Colors.white24),
+                    const SizedBox(height: 8),
+                    Text(
+                      "الخريطة",
+                      style: TextStyle(color: Colors.white38),
+                    ),
+                  ],
+                ),
               ),
             ),
+          ),
+          const SizedBox(height: 20),
+          Divider(color: AppColors.borderDark),
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  // 📍 موقع التسليم
+  // =============================
+  Widget _buildReturnLocation() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "موقع التسليم",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.white70, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.search.returnLocation ?? widget.search.pickupLocation,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Divider(color: AppColors.borderDark),
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  // ✅ المزايا المشمولة
+  // =============================
+  Widget _buildIncludedFeatures() {
+    final features = [
+      "إلغاء مجاني حتى 24 ساعة قبل وقت الاستلام",
+      "قيادة حتى ${widget.car.kmLimit ?? 300} كيلومترات (تكلفة الكيلومتر الإضافي: 0.40 ر.س لكل كيلومتر)",
+      "نظام تحديد المواقع",
+      "بلوتوث",
+      "كاميرا خلفية",
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "المزايا المشمولة",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...features.map((feature) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check,
+                    color: AppColors.primary,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    feature,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+
+  // =============================
+  // 📊 الشريط السفلي
+  // =============================
+  Widget _buildBottomBar() {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 16,
+        bottom: MediaQuery.of(context).padding.bottom + 16,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.cardDark,
+        border: Border(
+          top: BorderSide(color: AppColors.borderDark),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // زر المتابعة
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CarExtrasScreen(
+                      car: widget.car,
+                      search: widget.search,
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                "متابعة",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 20),
+
+          // السعر
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "السعر لـ ${widget.search.rentalDays} ${widget.search.rentalDays == 1 ? 'يوم' : 'أيام'}",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.6),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Text(
+                    "ر.س",
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    totalPrice.toStringAsFixed(2),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

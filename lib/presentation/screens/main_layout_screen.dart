@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mojood_app/core/app_colors.dart';
 
 import 'home_screen.dart';
-import 'favorites_screen.dart';
+import 'ai_chat_screen.dart';
 import 'my_bookings_screen.dart';
 import 'profile_screen.dart';
 
@@ -28,7 +28,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
 
   final pages = const [
     HomeScreen(),
-    FavoritesScreen(),
+    AIChatScreen(),
     MyBookingsScreen(),
     ProfileScreen(),
   ];
@@ -87,8 +87,8 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                 label: 'الرئيسية',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.favorite_rounded),
-                label: 'المفضلة',
+                icon: Icon(Icons.smart_toy_outlined), // أيقونة AI
+                label:'المساعد الذكي',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.receipt_long_rounded),

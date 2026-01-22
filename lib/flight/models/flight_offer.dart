@@ -1,170 +1,206 @@
 /// ✈️ نموذج عرض الرحلة
 class FlightOffer {
-  final String id;              // معرف الرحلة
-  final String airline;         // شركة الطيران
-  final String flightNo;        // رقم الرحلة
-  final String fromCity;        // مدينة الإقلاع
-  final String toCity;          // مدينة الوصول
-  final String fromCode;        // كود المطار
-  final String toCode;          // كود المطار
-  final String date;            // تاريخ الرحلة
-  final String departTime;      // وقت الإقلاع
-  final String arriveTime;      // وقت الوصول
-  final String duration;        // مدة الرحلة
-  final int stops;              // عدد التوقفات
-  final double price;           // السعر الأساسي
-  final String cabin;           // الدرجة
-  final int availableSeats;     // المقاعد المتاحة
+  final String id;
+  final String airline;
+  final String airlineCode;
+  final String flightNumber;
+  final String departureAirport;
+  final String arrivalAirport;
+  final DateTime departureTime;
+  final DateTime arrivalTime;
+  final String duration;
+  final double price;
+  final String currency;
+  final int availableSeats;
+  final String cabinClass;
+  final int stops;
   
-  // معلومات إضافية
-  final String? aircraftType;   // نوع الطائرة
-  final List<String>? amenities; // الخدمات المتوفرة
-  final Map<String, dynamic>? baggage; // معلومات الحقائب
+  // 🆕 للحجز الخارجي
+  final String? bookingUrl;
+  final String? deepLink;
 
   FlightOffer({
     required this.id,
     required this.airline,
-    required this.flightNo,
-    required this.fromCity,
-    required this.toCity,
-    required this.fromCode,
-    required this.toCode,
-    required this.date,
-    required this.departTime,
-    required this.arriveTime,
+    required this.airlineCode,
+    required this.flightNumber,
+    required this.departureAirport,
+    required this.arrivalAirport,
+    required this.departureTime,
+    required this.arrivalTime,
     required this.duration,
-    required this.stops,
     required this.price,
-    required this.cabin,
+    required this.currency,
     required this.availableSeats,
-    this.aircraftType,
-    this.amenities,
-    this.baggage,
+    required this.cabinClass,
+    required this.stops,
+    this.bookingUrl,
+    this.deepLink,
   });
 
-  /// 📥 إنشاء من قاعدة البيانات
-  factory FlightOffer.fromDb(Map<String, dynamic> json) {
-    return FlightOffer(
-      id: json['id']?.toString() ?? '',
-      airline: json['airline'] ?? '',
-      flightNo: json['flight_no'] ?? '',
-      fromCity: json['from_city'] ?? '',
-      toCity: json['to_city'] ?? '',
-      fromCode: json['from_code'] ?? '',
-      toCode: json['to_code'] ?? '',
-      date: json['date'] ?? '',
-      departTime: json['depart_time'] ?? '',
-      arriveTime: json['arrive_time'] ?? '',
-      duration: json['duration'] ?? '',
-      stops: json['stops'] ?? 0,
-      price: (json['price'] ?? 0).toDouble(),
-      cabin: json['cabin'] ?? 'Economy',
-      availableSeats: json['available_seats'] ?? 0,
-      aircraftType: json['aircraft_type'],
-      amenities: json['amenities'] != null 
-          ? List<String>.from(json['amenities']) 
-          : null,
-      baggage: json['baggage'],
-    );
+  /// 📥 إنشاء من Amadeus API
+  factory FlightOffer.fromAmadeus(Map<String, dynamic> json) {
+    try {
+      // الرحلة الأولى (ذهاب)
+      final itineraries = json['itineraries'] as List;
+      final firstItinerary = itineraries[0] as Map<String, dynamic>;
+      final segments = firstItinerary['segments'] as List;
+      final firstSegment = segments[0] as Map<String, dynamic>;
+      
+      // السعر
+      final price = json['price'] as Map<String, dynamic>;
+      final total = double.parse(price['total'].toString());
+      final currency = price['currency'] as String;
+      
+      // معلومات الناقل
+      final carrierCode = firstSegment['carrierCode'] as String;
+      final flightNumber = firstSegment['number'] as String;
+      
+      // الأوقات
+      final departure = firstSegment['departure'] as Map<String, dynamic>;
+      final arrival = firstSegment['arrival'] as Map<String, dynamic>;
+      
+      // عدد التوقفات
+      final stops = segments.length - 1;
+
+      return FlightOffer(
+        id: json['id'] ?? '',
+        airline: _getAirlineName(carrierCode),
+        airlineCode: carrierCode,
+        flightNumber: '$carrierCode$flightNumber',
+        departureAirport: departure['iataCode'] ?? '',
+        arrivalAirport: arrival['iataCode'] ?? '',
+        departureTime: DateTime.parse(departure['at']),
+        arrivalTime: DateTime.parse(arrival['at']),
+        duration: _formatDuration(firstItinerary['duration'] ?? ''),
+        price: total,
+        currency: currency,
+        availableSeats: json['numberOfBookableSeats'] ?? 9,
+        cabinClass: _formatCabinClass(firstSegment['cabin'] ?? 'ECONOMY'),
+        stops: stops,
+        bookingUrl: _generateBookingUrl(carrierCode),
+        deepLink: json['deepLink'],
+      );
+    } catch (e) {
+      print('❌ Error parsing flight offer: $e');
+      print('JSON: $json');
+      rethrow;
+    }
   }
 
-  /// 📋 تحويل إلى Map
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'airline': airline,
-      'flight_no': flightNo,
-      'from_city': fromCity,
-      'to_city': toCity,
-      'from_code': fromCode,
-      'to_code': toCode,
-      'date': date,
-      'depart_time': departTime,
-      'arrive_time': arriveTime,
-      'duration': duration,
-      'stops': stops,
-      'price': price,
-      'cabin': cabin,
-      'available_seats': availableSeats,
-      'aircraft_type': aircraftType,
-      'amenities': amenities,
-      'baggage': baggage,
+  /// ✈️ اسم شركة الطيران
+  static String _getAirlineName(String code) {
+    const airlines = {
+      'SV': 'الخطوط السعودية',
+      'XY': 'طيران ناس',
+      'F3': 'فلاي دبي',
+      'EK': 'طيران الإمارات',
+      'QR': 'الخطوط القطرية',
+      'MS': 'مصر للطيران',
+      'RJ': 'الملكية الأردنية',
+      'TK': 'الخطوط التركية',
+      'EY': 'الاتحاد للطيران',
+      'WY': 'الطيران العماني',
+      'G9': 'العربية للطيران',
+      'J9': 'جزيرة للطيران',
     };
+    
+    return airlines[code] ?? code;
   }
 
-  /// 🎫 حساب السعر الكلي حسب الركاب
-  double calculateTotalPrice({
-    required int adults,
-    required int children,
-    required int infants,
-  }) {
-    // البالغين: السعر الكامل
-    double total = price * adults;
+  /// 🔗 رابط الحجز حسب شركة الطيران
+  static String _generateBookingUrl(String carrierCode) {
+    const urls = {
+      'SV': 'https://www.saudia.com',
+      'XY': 'https://www.flynas.com',
+      'F3': 'https://www.flydubai.com',
+      'EK': 'https://www.emirates.com',
+      'QR': 'https://www.qatarairways.com',
+      'MS': 'https://www.egyptair.com',
+      'RJ': 'https://www.rj.com',
+      'TK': 'https://www.turkishairlines.com',
+      'EY': 'https://www.etihad.com',
+      'WY': 'https://www.omanair.com',
+      'G9': 'https://www.airarabia.com',
+    };
     
-    // الأطفال: 75% من السعر
-    total += (price * 0.75) * children;
-    
-    // الرضع: 10% من السعر
-    total += (price * 0.10) * infants;
-    
-    return total;
+    return urls[carrierCode] ?? 'https://www.skyscanner.com';
   }
 
-  /// ⏱️ هل الرحلة متاحة؟
-  bool get isAvailable => availableSeats > 0;
+  /// 🕐 تنسيق المدة
+  static String _formatDuration(String isoDuration) {
+    try {
+      // PT2H30M -> 2س 30د
+      final regex = RegExp(r'PT(?:(\d+)H)?(?:(\d+)M)?');
+      final match = regex.firstMatch(isoDuration);
+      
+      if (match != null) {
+        final hours = match.group(1);
+        final minutes = match.group(2);
+        
+        if (hours != null && minutes != null) {
+          return '${hours}س ${minutes}د';
+        } else if (hours != null) {
+          return '${hours}س';
+        } else if (minutes != null) {
+          return '${minutes}د';
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error formatting duration: $e');
+    }
+    
+    return isoDuration;
+  }
 
-  /// 🛑 نص عدد التوقفات
+  /// 🎫 تنسيق الدرجة
+  static String _formatCabinClass(String cabin) {
+    const classes = {
+      'ECONOMY': 'اقتصادية',
+      'PREMIUM_ECONOMY': 'اقتصادية مميزة',
+      'BUSINESS': 'رجال أعمال',
+      'FIRST': 'أولى',
+    };
+    
+    return classes[cabin] ?? cabin;
+  }
+
+  /// 🕐 وقت الإقلاع (نص)
+  String get departureTimeText {
+    final hour = departureTime.hour.toString().padLeft(2, '0');
+    final minute = departureTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  /// 🕐 وقت الوصول (نص)
+  String get arrivalTimeText {
+    final hour = arrivalTime.hour.toString().padLeft(2, '0');
+    final minute = arrivalTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  /// 💰 السعر (نص)
+  String get priceText => '${price.toStringAsFixed(0)} $currency';
+
+  /// 🔄 نص التوقفات
   String get stopsText {
-    if (stops == 0) return 'بدون توقف';
+    if (stops == 0) return 'مباشرة';
     if (stops == 1) return 'توقف واحد';
     return '$stops توقفات';
   }
 
-  /// 📝 نسخة معدلة
-  FlightOffer copyWith({
-    String? id,
-    String? airline,
-    String? flightNo,
-    String? fromCity,
-    String? toCity,
-    String? fromCode,
-    String? toCode,
-    String? date,
-    String? departTime,
-    String? arriveTime,
-    String? duration,
-    int? stops,
-    double? price,
-    String? cabin,
-    int? availableSeats,
-    String? aircraftType,
-    List<String>? amenities,
-    Map<String, dynamic>? baggage,
-  }) {
-    return FlightOffer(
-      id: id ?? this.id,
-      airline: airline ?? this.airline,
-      flightNo: flightNo ?? this.flightNo,
-      fromCity: fromCity ?? this.fromCity,
-      toCity: toCity ?? this.toCity,
-      fromCode: fromCode ?? this.fromCode,
-      toCode: toCode ?? this.toCode,
-      date: date ?? this.date,
-      departTime: departTime ?? this.departTime,
-      arriveTime: arriveTime ?? this.arriveTime,
-      duration: duration ?? this.duration,
-      stops: stops ?? this.stops,
-      price: price ?? this.price,
-      cabin: cabin ?? this.cabin,
-      availableSeats: availableSeats ?? this.availableSeats,
-      aircraftType: aircraftType ?? this.aircraftType,
-      amenities: amenities ?? this.amenities,
-      baggage: baggage ?? this.baggage,
-    );
+  /// 🎨 لون التوقفات
+  String get stopsColor {
+    if (stops == 0) return 'green';
+    if (stops == 1) return 'orange';
+    return 'red';
+  }
+
+  /// 🖼️ شعار شركة الطيران
+  String get airlineLogo {
+    return 'https://images.kiwi.com/airlines/64x64/$airlineCode.png';
   }
 
   @override
-  String toString() {
-    return 'FlightOffer($airline $flightNo: $fromCode→$toCode, $price SAR)';
-  }
+  String toString() => '$airline $flightNumber: $departureAirport → $arrivalAirport';
 }

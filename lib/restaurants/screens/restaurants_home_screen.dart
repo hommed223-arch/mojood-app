@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
-import 'models/restaurant_model.dart';
-import 'widgets/restaurant_card.dart';
-import 'widgets/category_chips.dart';
+import '../../core/app_colors.dart'; // ✅ المسار الصحيح
+import '../models/restaurant_model.dart'; // ✅ المسار الصحيح
+import '../widgets/restaurant_card.dart'; // ✅ المسار الصحيح
+import '../widgets/category_chips.dart'; // ✅ المسار الصحيح
 
 /// 🍽️ الشاشة الرئيسية للمطاعم
 class RestaurantsHomeScreen extends StatefulWidget {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/app_colors.dart';
+import '../../core/app_colors.dart'; // ✅ المسار الصحيح
 import '../models/restaurant_model.dart';
 
 /// 🏪 كارت المطعم

@@ -3,6 +3,7 @@ import 'package:mojood_app/presentation/screens/hotels_screen.dart';
 import 'package:mojood_app/presentation/screens/my_bookings_screen.dart';
 import 'package:mojood_app/flight/flight_home_screen.dart';
 import 'package:mojood_app/cars/screens/cars_home_screen.dart';
+import 'package:mojood_app/restaurants/screens/restaurants_home_screen.dart';
 import '../../core/app_colors.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -127,11 +128,20 @@ class HomeScreen extends StatelessWidget {
                         );
                       },
                     ),
+                    // ✅ 🆕 تم تفعيل المطاعم
                     _categoryCard(
                       context,
                       icon: Icons.restaurant,
                       title: "مطاعم",
-                      disabled: true,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RestaurantsHomeScreen(),
+                          ),
+                        );
+                      },
+                      // disabled: true,  // ❌ احذف هذا السطر
                     ),
                   ],
                 ),
